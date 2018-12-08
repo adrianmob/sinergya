@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YKM</title>
+</head>
+<link rel="stylesheet" href="css/estilos.css">
+<!-- fuentes de google-->
+<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+
+<body>
+    <header class="cabecera">
+        <figure>
+            <img src="imgs/ykm.jpeg" alt="logo" width="80">
+        </figure>
+
+    </header>
+    <div class="contenedor">
+        <div class="cualidad card">
+            <h2>Cualidad</h2>
+
+
+        </div>
+        <div class="cantidad card">
+            <h2>Cantidad</h2>
+            <h3>Personas registradas <span class="badge total">0</span></h3>
+            <h3 class="itemCant">Invitados: <span class="badge invitados">0</span></h3>
+            <h3 class="itemCant">Niños: <span class="badge ninos">0</span></h3>
+            <h3 class="itemCant">Empleados: <span class="badge empleados">0</span></h3>
+
+        </div>
+        <div class="menu card">
+            <h3 class="tituloMenu">Subir lista de empleados</h3>
+            <div class="archivo">
+                <div class="boton">
+                    <span >Archivo CSV</span>
+                    <input type="file" id="files">
+
+                </div>
+                <div class="fileCont">
+                        <input class="file-path" id="fileText" type="text">
+                </div>
+            </div>
+            <div class="enviar">
+                <span id="btnFile">Aceptar</span>
+            </div>
+            <div class="pdf">
+                <a class="tituloPdf">Descargar CSV</a>
+            </div>
+            
+
+        </div>
+    </div>
+
+   <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@7.29.0/dist/sweetalert2.all.min.js"></script>
+   <script src="https://www.gstatic.com/firebasejs/4.9.0/firebase-app.js"></script>
+   <script src="js/inicializar.js"></script>
+   <script src="https://www.gstatic.com/firebasejs/4.9.0/firebase-database.js"></script>
+   <script src="js/lib/papaparse.min.js"></script>
+
+   <script>
+       (function (){
+           firebase.database().ref("registrados").on("value", function(data){
+               var objeto = data.val();
+               var lista =[];
+               var descarga = [[]];
+               var contador = 0;
+              
+               for (const key in objeto) {
+                   lista.push(objeto[key]);
+                   descarga[contador].push(objeto[key].nombre);
+                   descarga[contador].push(camHora(objeto[key].hora));
+                   descarga[contador].push(objeto[key].invitados);
+                   descarga[contador].push(objeto[key].ninos);
+                   if(objeto[key].conductor){
+                       objeto[key].conductor = "Si";
+                   }
+                   else{
+                       objeto[key].conductor = "No";
+                   }
+                   descarga[contador].push(objeto[key].conductor);
+                   descarga.push([]);
+                   contador += 1;
+               }
+                descarga.pop();
+                dibList(lista);
+                var csv = Papa.unparse({
+	                fields: ["Nombre", "Hora", "Invitados", "Niños", "Conductor"],
+	                data: descarga
+                });
+                var blob = new Blob([["\ufeff"],csv]);
+                var blobURL = window.URL.createObjectURL(blob);
+                $("a.tituloPdf").attr("href", blobURL)
+                                .attr("download","data.csv");
+           });
+
+           function dibList(lista){
+               console.log(lista);
+               var linea = "";
+               $(".itemCual").each(function(){
+                   this.remove();
+               });
+               var empleados = 0, ninos = 0, invitados = 0, total = 0;
+               var clase = "";
+               lista.map(data=>{
+                   ninos += data.ninos;
+                   invitados += data.invitados;
+                   if(data.conductor == "Si"){
+                       clase = 'conductor';
+                   }
+                   else{
+                       clase = '';
+                   }
+                   data.hora = camHora(data.hora);
+                   linea += "<div class='itemCual "+ clase +"'>";
+                   linea += "<h3>"+data.nombre+"</h3>";
+                   linea += "<h3 class='invitados'>Invitados: "+data.invitados+"</h3>";
+                   linea += "<h3 class='invitados'>Niños: "+data.ninos+"</h3>";
+                   linea += "<h3 class='hora'>"+data.hora+"</h3>";
+                   linea += "</div>";
+                   
+               });
+               empleados = lista.length;
+               total = ninos + empleados + invitados;
+               console.log(total,empleados, ninos, invitados);
+               $("div.cualidad").append(linea);
+               $("span.total").html(total);
+               $("span.invitados").html(invitados);
+               $("span.ninos").html(ninos);
+               $("span.empleados").html(empleados);
+
+           }
+
+           function camHora(hora){
+                var horasEntrada, minEnt, segEnt, am;
+                var fechaEntrada = new Date(hora);
+                horasEntrada = fechaEntrada.getHours();
+                minEnt = fechaEntrada.getMinutes();
+                segEnt = fechaEntrada.getSeconds();
+                if (horasEntrada == 0 ) horasEntrada = 12;
+                if(minEnt<10)minEnt = "0" + minEnt;
+                if(segEnt<10)segEnt = "0" + segEnt;
+                if(horasEntrada>12){ horasEntrada = horasEntrada - 12; am = "P.M.";}
+                else{ am = "A.M."; }
+                if(horasEntrada<10)horasEntrada = "0" + horasEntrada; 
+                horasEntrada = horasEntrada + ":" + minEnt + ":" + segEnt + " " + am;
+                return horasEntrada;
+          
+            }
+            $("#files").on("change",function(){
+                $("#fileText").val(this.value);
+                if(this.value == ""){
+                    $("#fileText").removeClass("validado");
+                }
+                else{
+                    $("#fileText").addClass("validado");
+                }
+            });
+            $("#btnFile").on("click",function(){
+
+                $('#files').parse({
+                    config: {
+                    delimiter: "auto",
+                    complete: registroTrab,
+                    encoding: "ISO-8859-1"
+                    },
+                    before: function(file, inputElem){
+                        if(file.type == "application/vnd.ms-excel"){
+
+                        }else{
+                            var envio = {action: "abort",reason: "Formato incorrecto"};
+                            return envio;
+                    }},
+                    error: function(err, file, element, reason){
+                        if(reason == "Formato incorrecto"){
+                            $(element).val("");
+                            $("#fileText").val("");
+                            swal({
+                                title: 'Error',
+                                text:  'Formato incorrecto',
+                                type: 'error',
+                                confirmButtonText: 'Aceptar',
+                                timer: 2000,
+                            });
+                        }
+   
+                    }
+                    });
+                });
+            
+            function registroTrab(results){
+                firebase.database().ref('registro/').remove();
+                var contador = 0;
+                for (var index = 0; index < results.data.length; index++) {
+                    var fila = results.data[index][0].split(",");
+                    if(fila.length == 2){
+                        contador += 1;
+                        firebase.database().ref('registro/' + fila[0]).set({
+                        nombre: fila[1]
+                        });
+                    }
+                    swal({
+                        title: 'Muy bien',
+                        text:  contador + ' usuarios agregados',
+                        type: 'success',
+                        confirmButtonText: 'Aceptar',
+                        timer: 2000,
+                    });
+                    
+                }
+            }
+       })();
+   </script>
+    
+</body>
+</html>
